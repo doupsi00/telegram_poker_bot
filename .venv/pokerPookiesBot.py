@@ -44,7 +44,7 @@ def start(update: Update, context: CallbackContext) -> None:
 
         context.bot.send_message(
             update.message.chat_id,
-            "🎲 Welcome to PokerBot! Click Join to enter the game. \nHost can start the game by clicking /startgame",
+            "🎲 Welcome to PokerBot! Click Join button to enter the game. \nAfter everyone has joined, host can start the game by clicking /startgame",
             parse_mode=ParseMode.HTML,
             reply_markup=START_GAME_MARKUP
         )
@@ -143,7 +143,9 @@ def startgame(update: Update, context: CallbackContext) -> None:
 
     # Betting setup
     game_data["players"][small_blind_id]["bet"] = game_data["small_blind"]
+    game_data["players"][small_blind_id]["capital"] -= game_data["small_blind"]
     game_data["players"][big_blind_id]["bet"] = game_data["big_blind"]
+    game_data["players"][big_blind_id]["capital"] -= game_data["big_blind"]
     game_data["pot"] = game_data["small_blind"] + game_data["big_blind"]
     game_data["last_to_raise"] = big_blind_id
     game_data["left_to_bet"] = len(game_data["players"])
@@ -229,10 +231,8 @@ def call(update: Update, context: CallbackContext):
         reset_round()
         return
 
-    if all(p["bet"] == last_raise or p["folded"] for p in active_players):
-        advance_phase(context, update.message.chat_id)  # Move to flop/turn/river/showdown
-    else:
-        move_to_next_player(context, update.message.chat_id)
+
+    move_to_next_player(context, update.message.chat_id)
 
 
 def raise_bet(update: Update, context: CallbackContext):
@@ -260,7 +260,8 @@ def raise_bet(update: Update, context: CallbackContext):
         player["capital"] -= amount
         player["bet"] += amount
         game_data["pot"] += amount
-        game_data["last_to_bet"] = len(active_players)-1
+        game_data["left_to_bet"] = len(active_players)-1
+        print(len(active_players))
 
         context.bot.send_message(update.message.chat_id,
                                  f"📈 {player['name']} raised to ${game_data['last_raise']}.")
@@ -281,10 +282,12 @@ def move_to_next_player(context: CallbackContext, chat_id):
         winner_id = active_players[0]
         winner_name = game_data["players"][winner_id]["name"]
         context.bot.send_message(chat_id, f"🏆 {winner_name} wins the round! 🎉")
+        game_data["players"][winner_id]["capital"] += game_data["pot"]
         reset_round()
         return
 
     # **Track actions per round**
+    print(game_data["left_to_bet"])
     if game_data["left_to_bet"] == 0:
         advance_phase(context, chat_id)
         return
@@ -416,10 +419,11 @@ def determine_winner(context: CallbackContext, chat_id):
             winner_id = player_id
 
     # Declare the winner
+    game_data["players"][winner_id]["capital"]+=game_data["pot"]
     winner_name = game_data["players"][winner_id]["name"]
     txt = ""
-    context.bot.send_message(chat_id, f"🏆 {winner_name} wins with {txt.join(game_data['players'][winner_id]['cards'])}! 🎉")
-
+    context.bot.send_message(chat_id, f"🏆 {winner_name} wins with {txt.join(game_data['players'][winner_id]['cards'])}! 🎉 \n\nTable: {txt.join(game_data['table'])}")
+    context.bot.send_message(chat_id,"Start a new game by clicking /startgame")
 
 def evaluate_hand(cards):
     """Converts a list of card strings into a rank using treys"""
