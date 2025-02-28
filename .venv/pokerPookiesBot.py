@@ -485,7 +485,7 @@ def capital(update: Update, context: CallbackContext):
 
 
 def main() -> None:
-    updater = Updater("7344399900:AAHxdSdmQpCrcO2_4-VoTcehXaC3B4eJryc", use_context=True)
+    updater = Updater("INPUT TOKEN HERE", use_context=True)
     dispatcher = updater.dispatcher
 
     dispatcher.add_handler(CommandHandler("start", start))
